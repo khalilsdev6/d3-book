@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>D3: All vehicles</title>
+    <script type="text/javascript" src="../d3.js"></script>
+    <style type="text/css">
+      .node circle {
+        /* fill: #999; */
+				fill: white;
+				stroke-width: 1px;
+				stroke: #999;
+      }
+
+      .node text {
+        font: 10px sans-serif;
+      }
+
+      .node--internal circle {
+        /* fill: #555; */
+      }
+
+      .node--internal text {
+        text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
+      }
+
+      .link {
+        fill: none;
+        stroke: #555;
+        stroke-opacity: 0.4;
+        stroke-width: 1.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="text/javascript">
+      var callFlowData = [
+        { name: 'Main bakery', parent: "null",
+          children: [
+            { name: '1 (410) 123-2244', parent: 'Main bakery', children: [
+              { name: 'Hours', parent: '1 (410) 123-2244', children: [
+                { name: 'Closed', parent: 'Hours', children: [
+                  { name: 'Voicemail', parent: 'Closed' }
+                ] },
+                { name: 'Open', parent: 'Hours', children: [
+                  { name: 'Reception', parent: 'Open', children: [
+                    { name: 'Voicemail', parent: 'Reception' }
+                  ] }
+                ] }
+              ] }
+            ] }
+          ]
+        }
+      ]
+      var treeData = [
+        {
+          name: "Top Level",
+          parent: "null",
+          children: [
+            {
+              name: "Level 2: A",
+              parent: "Top Level",
+              children: [
+                {
+                  name: "Son of A",
+                  parent: "Level 2: A"
+                },
+                {
+                  name: "Daughter of A",
+                  parent: "Level 2: A"
+                }
+              ]
+            },
+            {
+              name: "Level 2: B",
+              parent: "Top Level",
+              children: [
+                {
+                  name: 'Last guy',
+                  parent: "Top Level"
+                }
+              ]
+            }
+          ]
+        }
+      ];
+
+      // This is not what I'm about right.
+      const margin = {
+        top: 20,
+        right: 120,
+        bottom: 20,
+        left: 120
+      };
+
+      const width = 960 - margin.right - margin.left;
+      const height = 500 - margin.top - margin.bottom;
+
+      let nodeRadius = 20;
+
+      var i = 0; // TODO: what's this for? not sure yet- we'll find out.
+      var duration = 750; // TODO: also don't know what this is for yet.
+      var root; //
+
+      // This is the special tree layout that we were talking about.
+      // This specifies how D3 will represent all of your data.
+      var tree = d3.cluster().size([height, width]);
+
+      // Creates a new diagonal generator function.
+      // What gets returned is a function that generates the path data
+      // for a cubic Bezier connecting the source and target points.
+      //
+      // This path data that it creates is what actually goes into the
+      // "d" attribute on the path svg element. That's what generator
+      // functions do, they create data for the svg element to use to
+      // decide what it will look like.
+
+      // **Update: It looks like in v4, this might not even exist.
+      // https://stackoverflow.com/questions/40845121/where-is-d3-svg-diagonal
+      // We might have to make it outselves TODO:
+
+      // var diagonal = d3.svg.diagonal()
+      // 	.projection((d) => [d.y, d.x])
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width + margin.right + margin.left)
+        .attr("height", height + margin.top + margin.bottom)
+        // So it looks like we're going to add a g tag inside of the
+        // svg.
+        .append("g")
+        // Ahh, we probably just want to do that to move the area where we're going
+        // to be drawing things all the way into view utilizing the margins.
+        // Also, the reference that the svg variable will be holding will be this
+        // slightly transformed g element.
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      // Set the root element to be the first element in our tree
+      // data.
+      root = d3.hierarchy(callFlowData[0]);
+
+      // These next two lines, we are specifying where we want the point
+      // to be placed. It actually makes sense. We want the point to be at
+      // the very left side of the screen but in the middle of the height.
+      // root.x0 = height / 2;
+      // root.y0 = 0;
+
+      // Now, we actually start something. Let's call our update() function
+      // with the root element.
+      update(root);
+
+      // Returns the element (such as <iframe> or <object>) in which the
+      // window is embedded, or null if the element is either top-level
+      // or is embedded into a document with a different script origin;
+      // that is, in cross-origin situations.
+      //
+      // frameEl is the element which the window is embedded into.
+      // If the window isn't embedded into another document, or if the
+      // document into which it's embedded has a different origin
+      // (such as having been located from a different domain), this
+      // is null.
+			d3.select(self.frameElement).style("height", "500px");
+			
+			/**
+			 * @func drawLinkPath
+			 * @desc This function is responsible for drawing the link path.
+			 * The calculation that's being done here is common across the
+			 * d3 community but we're going to want to adjust this so that if 
+			 * a node has more than 1 child, it renders the links coming from
+			 * the top and bottom of the node rather than from out of the right
+			 * hand side.
+       *
+       * This is drawn from the context of the child node to the parent
+       * node.
+			 */
+
+      var lineGenerator = d3.line();
+      lineGenerator.curve(d3.curveBasis);
+
+			function drawLinkPath(d) {
+        const parent = d.parent;
+        const parentsChildren = parent.children;
+
+        let lineGen = d3.line().curve(d3.curveBasis);
+      
+        if (parentsChildren.length > 1) {
+          return lineGen([
+            [d.y, d.x], 
+            [d.y - (d.y - d.parent.y), d.x],
+            [d.parent.y, d.x],
+            [d.parent.y, d.parent.x]
+          ])
+          // return `M ${d.y}, ${d.x}
+          //   C ${d.y - (d.y - d.parent.y)} ${d.x}
+          //   ${d.parent.y} ${d.x}
+          //   ${d.parent.y} ${d.parent.x}
+          // `
+        } else {
+          return "M" + d.y + "," + d.x
+            + "C" + (d.parent.y + 100) + "," + d.x
+            + " " + (d.parent.y + 100) + "," + d.parent.x
+            + " " + d.parent.y + "," + d.parent.x;
+        }
+			}
+
+      function update(source) {
+        // Compute the new tree layout.
+        // This thing right here actually turns everything into a layout.
+        let nodes = tree(root);
+        
+        // Create links
+        var link = svg
+          .selectAll(".link")
+          // descendants() is a function that will return all of the 
+          // descendants in the tree after we've created a tree object
+          // from the root. We want to use the data from every element under
+          // the root element to build the links (root + next)
+          .data(root.descendants().slice(1))
+          // Create virtual links
+          .enter()
+          // For each virtual link, append a path
+          .append("path")
+          // On that path, add the "link" class
+          .attr("class", "link")
+          // On the path, give it the data needed to actually draw
+          // that path.
+          .attr('d', function (d) {
+            return drawLinkPath(d)
+          })
+          // /// .attr("d", drawLinkPath);
+
+
+        // Create nodes
+        var node = svg
+          // ==================
+          // 1. Create the node group 
+          // ===================
+          // Similarly to how we created the links, we're going to
+          // select what we want to create, (but this could be anything
+          // that doesn't currently exist). 
+          .selectAll(".node")
+          // Then, we want to use every decendany of the tree from the
+          // root INCLUDING the root this time! Because we want to actually
+          // draw the root node as well, we include it.
+          .data(root.descendants())
+          // Create the virtual .node elements
+          .enter()
+          //  For each element, append a group element
+          .append("g")
+          // That group element should have a class of 
+          // "node" on it. But depending on if the class has children or not,
+          // we also say it's an internal node or a leaf node.
+          .attr("class", function(d) {
+            return "node" + (d.children ? " node--internal" : " node--leaf");
+          })
+          // In order to get our nodes to slide over from left to right, we
+          // need to apply a translation on it. This function takes the 
+          // data from this particularly selected node and uses the x, y
+          // coordinates that D3 actually created for us when it build the
+          // tree layout.
+          .attr("transform", function(d) {
+            return "translate(" + d.y + "," + d.x + ")";
+          })
+
+          // ============================
+          // 2. Add the circle to the node group
+          // ============================
+          // Next, we add the circle to the node group
+          node.append("circle")
+          // We'll make the radius 20 px, so it should be 
+          // 40 px wide overall.
+          .attr("r", nodeRadius)
+          // Then we can hook up event listeners to do respond to
+          // dom events.
+          .on("click", d => { console.log(d, "clicked"); })
+          .on("mouseover", d => { console.log("hovering over item"); })
+          .on("mouseleave", () => { console.log("mouse leave"); })
+          // ==============================
+          // 3. Add the text to the node group
+          // ==============================
+          // Then, we'll add the text to the node group as well.
+          node.append("text")
+          // dy attribute allows you to shift the text position vertically.
+          .attr("dy", 3)
+          // Depending on if the node has children or not, we put the text on
+          // the left or the right hand side. x is the coordinate.
+          .attr("x", function(d) {
+            return 0;
+          })
+          .attr('y', function() {
+            return nodeRadius + nodeRadius / 2;
+          })
+          // Depending on if the node is a leaf node or not, we choose to
+          // render the text on the left or right. Right if the node is
+          // a leaf.
+          .style("text-anchor", function(d) {
+            return "middle";
+          })
+          .text(function(d) {
+            return d.data.name;
+          });
+      }
+    </script>
+  </body>
+</html>

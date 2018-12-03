@@ -32,9 +32,16 @@
 			   .attr("x", function(d, i) {
 			   		return i * (w / dataset.length);
 			   })
-			   .attr("y", 0)
+			   .attr("y", function (d) {
+					  return h - d;
+				 })
 			   .attr("width", w / dataset.length - barPadding)
-			   .attr("height", 100);
+			   .attr("height", function (d) {
+					 return d;
+				 })
+				 .attr('fill', function (d) {
+					 return `rgb(0,0,${Math.round(d * 10)})`
+				 })
 			
 		</script>
 	</body>

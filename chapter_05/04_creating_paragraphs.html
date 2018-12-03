@@ -8,13 +8,34 @@
 	<body>
 		<script type="text/javascript">
 		
-			var dataset = [ 5, 10, 15, 20, 25 ];
+			var dataset = [ 5, 10, 15, 20, 25, 50 ];
 			
-			d3.select("body").selectAll("p")
+			d3
+				.select("body")
+				// Find the body in the DOM and hand off a reference to the next
+				// step in the chain
+				.selectAll("li")
+				// Select all paragraph tags in the DOM (hint: there are none yet).
+				// Since there aren't any yet, it returns an empty selection.
 				.data(dataset)
+				// Count and parse all the elements of our data set. Everything in
+				// our chain thus far is executed 5 times.
 				.enter()
+				// Enter is what actually creates the data-bound elements. It looks at the
+				// current DOM selection, and then the data being sent to it. If there
+				// are more data elements than DOM elements, it creates new placeholder
+				// elements (these are generic elements, not specifically the 
+				// type that we've specified "p"). Then with these ghost generic elements,
+				// it hands off a reference to the next line in the chain.
 				.append("p")
+				// Ah, so since we've done .data(dataset) with an element of length = 5,
+				// this is essentially called 5 times. Each of the ghost elements that 
+				// append("p") gets called with is going to be replaced with "p". 
+				// Then, we pass a reference to this new element to the next step
+				// in the chain.
 				.text("New paragraph!");
+				// Finally, the simplest part to understand- similar to jQuery, we set the
+				// inner text of the p tag to be "New paragraph".
 			
 		</script>
 	</body>

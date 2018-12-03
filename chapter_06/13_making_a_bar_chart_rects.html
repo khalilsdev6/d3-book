@@ -19,19 +19,22 @@
 							11, 12, 15, 20, 18, 17, 16, 18, 23, 25 ];
 			
 			//Create SVG element
-			var svg = d3.select("body")
-						.append("svg")
-						.attr("width", w)
-						.attr("height", h);
+			var svg = d3.select('body')
+				.append('svg')
+				.attr('width', w)
+				.attr('height', h);
 
-			svg.selectAll("rect")
-			   .data(dataset)
-			   .enter()
-			   .append("rect")
-			   .attr("x", 0)
-			   .attr("y", 0)
-			   .attr("width", 20)
-			   .attr("height", 100);
+			// Create the rectangles
+			var rects = svg.selectAll('rect')
+				.data(dataset)
+				.enter()
+				.append('rect')
+				.attr('x', function (d, i) {
+					return (i * 21)
+				})
+				.attr('y', 0)
+				.attr('width', 20)
+				.attr('height', 100)
 			
 		</script>
 	</body>
